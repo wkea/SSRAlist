@@ -338,7 +338,27 @@ def install_service(alist_path, nssm_path, install_dir, service_name="AlistServi
         # 设置超时时间
         subprocess.run([nssm_path, "set", service_name, "AppStopMethodConsole", "1800000"])
         
+        # 明确设置服务以LocalSystem账户运行（具有最高权限）
+        print(f"{Fore.YELLOW}正在设置服务权限为系统账户...{Style.RESET_ALL}")
+        subprocess.run([nssm_path, "set", service_name, "ObjectName", "LocalSystem"])
+        
+        # 设置服务的启动类型为自动
+        subprocess.run([nssm_path, "set", service_name, "Start", "SERVICE_AUTO_START"])
+        
+        # 给予服务显示桌面交互的权限
+        subprocess.run([nssm_path, "set", service_name, "Type", "SERVICE_INTERACTIVE_PROCESS"])
+        
         print(f"{Fore.YELLOW}服务'{service_name}'安装成功，正在启动...{Style.RESET_ALL}")
+        
+        # 赋予安装目录完全权限
+        try:
+            print(f"{Fore.YELLOW}正在设置目录权限...{Style.RESET_ALL}")
+            subprocess.run(["icacls", install_dir, "/grant", "Administrators:(OI)(CI)F", "/T"],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.run(["icacls", install_dir, "/grant", "SYSTEM:(OI)(CI)F", "/T"],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except Exception as e:
+            print(f"{Fore.YELLOW}设置目录权限时出错: {str(e)}{Style.RESET_ALL}")
         
         # 启动服务
         start_result = subprocess.run([nssm_path, "start", service_name], 
@@ -399,7 +419,7 @@ def install_service(alist_path, nssm_path, install_dir, service_name="AlistServi
                 except:
                     pass
                 
-                print(f"{Fore.YELLOW}服务安装成功但状态检查失败，可能仍在启动中{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}服务安装成功但状态检查失败，可能仍在启动中{Style.RESET_ALL}")
             
             # 即使状态检查失败，但如果服务已安装，也认为基本成功
             return True
@@ -561,8 +581,10 @@ def main():
         print(f"\n{Fore.CYAN}{'='*50}{Style.RESET_ALL}")
         print(f"{Fore.CYAN}Alist常用命令:{Style.RESET_ALL}")
         print(f"- 查看管理员信息: {Fore.GREEN}alist admin info{Style.RESET_ALL}")
-        print(f"- 重置管理员密码: {Fore.GREEN}alist admin reset{Style.RESET_ALL}")
+        print(f"- 重置管理员密码: {Fore.GREEN}alist admin random --data \"C:\Program Files\Alist\data\"{Style.RESET_ALL}")
         print(f"- 手动启动服务: {Fore.GREEN}alist server{Style.RESET_ALL}")
+        print(f"- 手动修改密码: {Fore.GREEN}alist admin set YOUR_NEW_PASSWORD --data \"C:\Program Files\Alist\data\"{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}如果遇到:“token is invalidated”相关错误，请尝试在 后面添加参数 【--data \"C:\Program Files\Alist\data\"】{Style.RESET_ALL}")
         print(f"- 查看帮助: {Fore.GREEN}alist --help{Style.RESET_ALL}")
         print(f"{Fore.CYAN}{'='*50}{Style.RESET_ALL}")
     else:
